@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'SwipePage.dart';
+import 'swipe_page.dart';
 import 'friends_page.dart';
 import 'nav_utils.dart';     // friendsIconWithGlobalBadge(), kAccountIcon
 import 'badge_center.dart'; // BadgeCenter.instance.refresh(), setUser(null)

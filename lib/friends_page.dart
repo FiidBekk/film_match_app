@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
 import 'account_page.dart';
-import 'SwipePage.dart'; // ha kisbetűs: 'swipe_page.dart';
+import 'swipe_page.dart'; // ha kisbetűs: 'swipe_page.dart';
 import 'qr_scan_page.dart';
 
 // globális badge és egységes navbar ikon

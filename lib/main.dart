@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'SwipePage.dart';
+
+import 'swipe_page.dart';
 import 'badge_center.dart';
 
 void main() async {
@@ -12,7 +13,7 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  // opcionális: ha máshová költözik az API-d, itt egy helyen átírhatod
+  // API base URL (ha változik, itt elég átírni)
   BadgeCenter.instance.setBaseUrl("https://bluemedusa.store/filmapp");
 
   runApp(const FilmApp());
@@ -40,7 +41,6 @@ class Session {
   static const _kPassword = 'password';
   static const _kUserId = 'user_id';
   static const _kName = 'name';
-  // Ha van: static const _kUsername = 'username'; static const _kToken = 'token';
 
   static Future<void> saveLogin({
     required String email,
@@ -49,26 +49,26 @@ class Session {
     String? name,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    // régi session teljes törlése, nehogy bent maradjon valami
-    await prefs.clear();
+    await prefs.clear(); // tiszta indulás
     await prefs.setString(_kEmail, email);
     await prefs.setString(_kPassword, password);
     await prefs.setInt(_kUserId, userId);
     if (name != null) await prefs.setString(_kName, name);
 
-    // 🔴 jelentsük be a BadgeCenter-nek az aktuális usert (realtime badge)
+    // BadgeCenter-nek jelezzük az aktuális usert (realtime jelzéshez)
     BadgeCenter.instance.setUser(userId);
   }
 
   static Future<void> logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-
-    // 🔴 badge nullázása és polling leállítása
     BadgeCenter.instance.setUser(null);
 
     if (context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
     }
   }
 
@@ -97,8 +97,14 @@ class FilmApp extends StatelessWidget {
       routes: <String, Widget Function(BuildContext)>{
         "/login": (_) => const LoginPage(),
       },
-      theme: ThemeData.dark().copyWith(
+      // Deprecation-mentes theme
+      theme: ThemeData.from(
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.purple,
+          secondary: Colors.purpleAccent,
+        ),
         useMaterial3: false,
+      ).copyWith(
         splashFactory: NoSplash.splashFactory,
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
@@ -113,10 +119,6 @@ class FilmApp extends StatelessWidget {
           },
         ),
         scaffoldBackgroundColor: Colors.black,
-        colorScheme: const ColorScheme.dark(
-          primary: Colors.purple,
-          secondary: Colors.purpleAccent,
-        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
@@ -168,9 +170,9 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (creds == null) {
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
       );
       return;
     }
@@ -196,14 +198,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
         if (userId == -1) {
           if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LoginPage()),
+            (route) => false,
           );
           return;
         }
 
-        // Mentsük újra a session-t tisztán (felülírva bármi régit)
         await Session.saveLogin(
           email: creds["email"],
           password: creds["password"],
@@ -211,26 +212,26 @@ class _SplashScreenState extends State<SplashScreen> {
           name: name,
         );
 
-        // 🔴 login után azonnal legyen aktív a badge polling
+        // login után azonnal legyen aktív a badge polling
         BadgeCenter.instance.setUser(userId);
 
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const SwipePage()),
+          (route) => false,
         );
       } else {
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
         );
       }
     } catch (_) {
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
       );
     }
   }
@@ -292,18 +293,19 @@ class _LoginPageState extends State<LoginPage> {
           name: name,
         );
 
-        // 🔴 login után azonnal induljon a badge polling
+        // login után azonnal induljon a badge polling
         BadgeCenter.instance.setUser(userId);
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Szia${name != null ? ", $name" : ""}! (ID: $userId)")),
-        );
+        if (name != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Szia, $name! (ID: $userId)")),
+          );
+        }
 
-        Navigator.pushNamedAndRemoveUntil(context, "/", (route) => false);
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const SwipePage()),
+          (route) => false,
         );
       } else {
         setState(() => message = data["message"] ?? "Sikertelen bejelentkezés.");
@@ -424,8 +426,8 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                  onPressed: register, child: const Text("Register")),
+              child:
+                  ElevatedButton(onPressed: register, child: const Text("Register")),
             ),
             const SizedBox(height: 16),
             if (message.isNotEmpty)

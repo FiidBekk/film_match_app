@@ -20,6 +20,7 @@ class SwipePage extends StatefulWidget {
   final int initialIndex;
 
   @override
+  // ignore: library_private_types_in_public_api
   _SwipePageState createState() => _SwipePageState();
 }
 
@@ -254,6 +255,7 @@ class _SwipePageState extends State<SwipePage> with TickerProviderStateMixin {
   }
 
   // Friends ikon + badge (piros pötty)
+  // ignore: unused_element
   Widget _friendsIconWithBadge() {
     final hasBadge = _incomingCount > 0;
     return Stack(

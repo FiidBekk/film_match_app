@@ -10,9 +10,9 @@ class BadgeCenter {
   final ValueNotifier<int> _pending = ValueNotifier<int>(0);
   int? _userId;
 
-  String? _baseUrl; // <-- itt tároljuk memóriában is
+  String? _baseUrl; // memóriában is tároljuk
 
-  /// Olvasható listenable az ikonokhoz
+  /// Olvasható listenable az ikonokhoz (ValueListenableBuilder-hez)
   ValueListenable<int> get pendingListenable => _pending;
 
   /// Opcionális: API base URL beállítása és elmentése (pl. main.dart-ból)
@@ -43,7 +43,8 @@ class BadgeCenter {
 
   /// Szerverről frissíti a bejövő kérések számát (ha van user)
   Future<void> refresh() async {
-    if (_userId == null || _userId! <= 0) {
+    final uid = _userId;
+    if (uid == null || uid <= 0) {
       _pending.value = 0;
       return;
     }
@@ -54,14 +55,32 @@ class BadgeCenter {
           prefs.getString('api_base') ??
           'https://bluemedusa.store/filmapp';
 
-      final url = Uri.parse('$baseUrl/friend_requests_incoming.php?user_id=${_userId}');
-      final r = await http.get(url);
-      if (r.statusCode != 200) return;
+      // 1) Próbáljuk a COUNT endpointot (gyors)
+      final countUrl = Uri.parse('$baseUrl/friends_incoming_count.php?user_id=$uid');
+      final countRes = await http.get(countUrl);
 
-      final data = json.decode(r.body);
-      if (data is Map && data['success'] == true) {
-        final list = (data['requests'] as List?) ?? const [];
-        _pending.value = list.length;
+      bool handled = false;
+      if (countRes.statusCode == 200) {
+        final data = json.decode(countRes.body);
+        final raw = data is Map ? data['count'] : null;
+        final count = raw is String ? int.tryParse(raw) : (raw is int ? raw : null);
+        if (count != null) {
+          _pending.value = count.clamp(0, 999);
+          handled = true;
+        }
+      }
+
+      if (handled) return;
+
+      // 2) Fallback: lista endpoint
+      final listUrl = Uri.parse('$baseUrl/friend_requests_incoming.php?user_id=$uid');
+      final listRes = await http.get(listUrl);
+      if (listRes.statusCode == 200) {
+        final data = json.decode(listRes.body);
+        if (data is Map && data['success'] == true) {
+          final list = (data['requests'] as List?) ?? const [];
+          _pending.value = list.length.clamp(0, 999);
+        }
       }
     } catch (_) {
       // némán – ne zavarja a UI-t
