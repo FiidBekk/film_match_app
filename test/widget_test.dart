@@ -1,30 +1,25 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+// test/widget_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+// ⬇️ hagyd így, ha a pubspec name: film_match_app
+// ha más a csomagnév, ÍRD ÁT pontosra!
 import 'package:film_match_app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    // Ha az app induláskor Preferences-t olvas, ne dőljön el testben:
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('FilmApp smoke test - felépül hiba nélkül', (WidgetTester tester) async {
+    // Ha a FilmApp konstruktora NEM const, vedd ki a const-ot!
     await tester.pumpWidget(const FilmApp());
+    await tester.pump(); // engedünk egy frame-et
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byType(FilmApp), findsOneWidget);
   });
 }
